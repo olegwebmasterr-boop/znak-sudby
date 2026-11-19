@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /assets/
+
+User-agent: Yandex
+Allow: /
+Disallow: /assets/
+
+Sitemap: https://znak-sudby.ru/sitemap.xml

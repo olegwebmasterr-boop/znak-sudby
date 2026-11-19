@@ -1,0 +1,98 @@
+
+:root{--bg:#FBF8F4;--ink:#2E2440;--muted:#8A8494;--accent:#5B3E8E;--accent-soft:#F1EBFA;--gold:#B98A2F;--gold-soft:#FDF4E3;--line:#E9E1D5;--card:#FFFFFF}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.68 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+.wrap{max-width:1060px;margin:0 auto;padding:0 18px}
+header.site{position:sticky;top:0;z-index:50;background:rgba(251,248,244,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.header-in{display:flex;align-items:center;gap:18px;height:62px}
+.logo{display:flex;align-items:center;gap:9px;font-family:Georgia,serif;font-weight:700;font-size:20px;color:var(--ink);white-space:nowrap}
+.logo .mark{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#5B3E8E,#3B2A5E);color:#E7C877;display:flex;align-items:center;justify-content:center;font-size:16px}
+nav.rub{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin-left:auto}
+nav.rub::-webkit-scrollbar{display:none}
+nav.rub a{padding:7px 11px;border-radius:999px;color:var(--ink);font-size:14.5px;white-space:nowrap}
+nav.rub a:hover{background:var(--accent-soft);text-decoration:none}
+nav.rub a.on{background:var(--accent);color:#fff}
+.breadcrumbs{font-size:13.5px;color:var(--muted);margin:16px 0 4px}
+.breadcrumbs a{color:var(--muted)}
+h1,h2,h3,.pc-title{font-family:Georgia,"Times New Roman",serif;color:var(--ink);line-height:1.28}
+h1{font-size:clamp(26px,4.4vw,38px);margin:10px 0 12px}
+h2{font-size:clamp(21px,3vw,27px);margin:38px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--gold-soft)}
+h3{font-size:19.5px;margin:26px 0 10px}
+p{margin:0 0 16px}
+.lead{font-size:18.5px;color:#4A4159}
+.meta-line{font-size:13.5px;color:var(--muted);margin:0 0 18px}
+figure.hero{margin:6px 0 24px}
+figure.hero img{width:100%;border-radius:14px;display:block}
+figure.hero figcaption{font-size:13px;color:var(--muted);margin-top:7px}
+.answer-box{background:var(--gold-soft);border-left:4px solid var(--gold);border-radius:0 12px 12px 0;padding:14px 18px 4px;margin:20px 0 26px}
+.ab-label{display:inline-block;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:6px}
+.note{background:var(--accent-soft);border-left:4px solid var(--accent);border-radius:0 12px 12px 0;padding:12px 16px;margin:18px 0;font-size:15.5px}
+.quote{font-family:Georgia,serif;font-style:italic;font-size:18.5px;color:#3D3154;border-left:3px solid var(--gold);margin:24px 0 24px 6px;padding:4px 0 4px 18px}
+.tbl{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:18px 0 24px;border-radius:12px;border:1px solid var(--line)}
+.tbl table{border-collapse:collapse;width:100%;background:#fff;font-size:15px;min-width:540px}
+.tbl th{background:var(--accent);color:#fff;text-align:left;padding:10px 12px;font-weight:600}
+.tbl td{padding:9px 12px;border-top:1px solid var(--line);vertical-align:top}
+.tbl tr:nth-child(even) td{background:#FAF7F2}
+.partner-card{background:linear-gradient(135deg,#F6F1FC,#FDF9F1);border:1px solid #E5D8F0;border-radius:14px;padding:18px 20px;margin:28px 0}
+.pc-badge{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.pc-title{font-size:19px;margin:0 0 8px}
+.partner-card p{font-size:15.5px;margin-bottom:14px}
+.btn{display:inline-block;background:var(--accent);color:#fff;padding:11px 22px;border-radius:999px;font-weight:600;font-size:15.5px}
+.btn:hover{background:#4A3178;text-decoration:none;color:#fff}
+details.faq{border:1px solid var(--line);border-radius:12px;background:#fff;margin-bottom:10px;padding:0 16px}
+details.faq summary{cursor:pointer;font-weight:600;padding:13px 0;font-size:16px;list-style:none;position:relative;padding-right:28px}
+details.faq summary::-webkit-details-marker{display:none}
+details.faq summary:after{content:"+";position:absolute;right:2px;top:10px;color:var(--gold);font-size:20px}
+details.faq[open] summary:after{content:"–"}
+details.faq p{font-size:15.5px;color:#443B58}
+.toc{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin:20px 0}
+.toc .t{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.toc ol{margin:0;padding-left:20px;columns:2;column-gap:28px;font-size:15px}
+.toc li{margin-bottom:5px;break-inside:avoid}
+.related{margin:34px 0 10px}
+.rel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.rel-card{display:block;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;color:var(--ink);font-size:15px;font-weight:600;line-height:1.4}
+.rel-card:hover{border-color:var(--accent);text-decoration:none}
+.rel-card .rc-tag{display:block;font-size:11.5px;font-weight:400;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.chips-block{margin:16px 0 22px}
+.chips-title{display:block;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.chip{display:inline-block;background:#fff;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:14px;margin:0 8px 8px 0}
+.hero-home{padding:44px 0 8px}
+.hero-home h1{max-width:760px}
+.hero-home .sub{font-size:18.5px;color:#4A4159;max-width:720px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin:22px 0}
+.rub-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;display:block;color:var(--ink)}
+.rub-card:hover{border-color:var(--accent);text-decoration:none}
+.rub-ico{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#5B3E8E,#3B2A5E);color:#E7C877;font-family:Georgia,serif;font-size:20px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.rub-card .rc-name{display:block;font-family:Georgia,serif;font-weight:700;font-size:19px;margin-bottom:6px}
+.rub-card .rc-desc{display:block;font-size:14px;color:var(--muted);line-height:1.5}
+.art-card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;color:var(--ink)}
+.art-card img{width:100%;height:150px;object-fit:cover;display:block}
+.art-card .ac-body{padding:13px 15px 15px}
+.art-card .ac-rub{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);font-weight:700}
+.art-card .ac-title{display:block;font-weight:600;font-size:15.5px;line-height:1.42;margin-top:5px}
+.art-card:hover{border-color:var(--accent);text-decoration:none}
+.soon{color:var(--muted);font-size:14.5px}
+.soon li{margin-bottom:6px}
+.section-t{font-family:Georgia,serif;font-size:24px;margin:36px 0 6px}
+footer.site{background:#2A2140;color:#CFC6E0;margin-top:56px;padding:34px 0 30px;font-size:14.5px}
+footer.site a{color:#E7C877}
+.f-grid{display:flex;flex-wrap:wrap;gap:30px;justify-content:space-between}
+.f-dis{max-width:640px;color:#9C92B8;margin-top:14px;font-size:13px;line-height:1.6}
+.nf{text-align:center;padding:70px 0 40px}
+.nf-mark{font-size:44px;color:var(--gold)}
+.nf ul{list-style:none;padding:0;max-width:420px;margin:20px auto;text-align:left}
+.nf li{margin-bottom:8px}
+@media(max-width:720px){.toc ol{columns:1}.header-in{height:54px}.hero-home{padding:30px 0 4px}}
+@media print{header.site,footer.site,.partner-card{display:none}}
+
+/* === Фикс мобильной вёрстки (18.11.2026) ===
+   Причины: inline-картинки 1344px вылезали за экран телефона (3 ширины текста),
+   hero-картинки искажались (width:100% без height:auto при height="768" в HTML),
+   у inline-подписей не было стилей. */
+img{max-width:100%;height:auto}
+figure.hero img{height:auto}
+.inline-fig{margin:22px 0}
+.inline-fig img{width:100%;border-radius:12px;display:block}
+.inline-fig figcaption{font-size:13px;color:var(--muted);margin-top:7px}
