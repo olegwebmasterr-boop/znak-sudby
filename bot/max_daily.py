@@ -99,6 +99,13 @@ def _font_path():
     raise FileNotFoundError("DejaVuSans-Bold.ttf не найден (шрифт должен лежать в bot/img/)")
 
 
+PALETTES = [
+    ((23, 18, 43), (63, 37, 92), (214, 178, 74), (255, 243, 214)),   # индиго-фиолет + золото
+    ((9, 36, 40), (22, 70, 66), (196, 208, 100), (240, 250, 222)),   # изумруд + лайм
+    ((36, 14, 24), (86, 28, 44), (224, 164, 96), (255, 240, 225)),   # бордо + медь
+]
+
+
 def make_cover(mode: str, date_str: str, big: str, small: str, out: str = "/tmp/max_cover.png"):
     try:
         from PIL import Image, ImageDraw, ImageFont
@@ -106,32 +113,46 @@ def make_cover(mode: str, date_str: str, big: str, small: str, out: str = "/tmp/
         subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "pillow"], check=True)
         from PIL import Image, ImageDraw, ImageFont
 
-    W, H = 1280, 720
-    img = Image.new("RGB", (W, H), (23, 18, 43))
-    d = ImageDraw.Draw(img)
-    top, bottom = (23, 18, 43), (63, 37, 92)          # индиго -> фиолет
-    for y in range(H):
-        t = y / H
-        d.line([(0, y), (W, y)], fill=tuple(int(a + (b - a) * t) for a, b in zip(top, bottom)))
     rng = random.Random(date_str + mode)
-    for _ in range(150):                              # звёздное небо
+    pal = PALETTES[rng.randrange(len(PALETTES))]
+    motif = rng.randrange(3)
+    W, H = 864, 1152                                   # вертикаль 3:4 — вся ширина ленты
+    img = Image.new("RGB", (W, H), pal[0])
+    d = ImageDraw.Draw(img)
+    for y in range(H):                                 # вертикальный градиент
+        t = y / H
+        d.line([(0, y), (W, y)], fill=tuple(int(a + (b - a) * t) for a, b in zip(pal[0], pal[1])))
+    for _ in range(160):                               # звёздная пыль
         x, y = rng.randrange(W), rng.randrange(H)
         r = rng.choice((1, 1, 1, 2, 2, 3))
         v = rng.choice((90, 140, 200, 255))
         d.ellipse([x - r, y - r, x + r, y + r], fill=(v, v, min(255, v + 25)))
-    cx, cy, R = W // 2, 350, 215                      # золотое кольцо
-    d.ellipse([cx - R, cy - R, cx + R, cy + R], outline=(214, 178, 74), width=4)
-    d.ellipse([cx - R - 7, cy - R - 7, cx + R + 7, cy + R + 7], outline=(214, 178, 74), width=1)
-    f_small = ImageFont.truetype(_font_path(), 46)
-    f_big = ImageFont.truetype(_font_path(), 150 if len(big) <= 4 else 105)
-    f_date = ImageFont.truetype(_font_path(), 30)
+    if motif == 1:                                     # созвездие
+        pts = [(rng.randrange(60, W - 60), rng.randrange(60, 420)) for _ in range(7)]
+        for i in range(len(pts) - 1):
+            d.line([pts[i], pts[i + 1]], fill=pal[2], width=2)
+        for x, y in pts:
+            d.ellipse([x - 4, y - 4, x + 4, y + 4], fill=pal[3])
+    elif motif == 2:                                   # лучи из центра
+        import math
+        for k in range(12):
+            a = k * math.pi / 6
+            x1, y1 = W / 2 + 320 * math.cos(a), 620 + 320 * math.sin(a)
+            x2, y2 = W / 2 + 520 * math.cos(a), 620 + 520 * math.sin(a)
+            d.line([x1, y1, x2, y2], fill=pal[2], width=1)
+    cx, cy, R = W // 2, 620, 255                       # золотое кольцо
+    d.ellipse([cx - R, cy - R, cx + R, cy + R], outline=pal[2], width=5)
+    d.ellipse([cx - R - 8, cy - R - 8, cx + R + 8, cy + R + 8], outline=pal[2], width=1)
+    f_small = ImageFont.truetype(_font_path(), 52)
+    f_big = ImageFont.truetype(_font_path(), 210 if len(big) <= 4 else 125)
+    f_date = ImageFont.truetype(_font_path(), 34)
 
     def center(text, font, y, fill):
         d.text(((W - d.textlength(text, font=font)) / 2, y), text, font=font, fill=fill)
 
-    center("· " + small + " ·", f_small, 92, (214, 178, 74))
-    center(big, f_big, 268, (255, 243, 214))
-    center(date_str, f_date, 626, (168, 152, 192))
+    center("· " + small + " ·", f_small, 150, pal[2])
+    center(big, f_big, cy - f_big.size // 2 - 6, pal[3])
+    center(date_str, f_date, 1046, (200, 190, 215))
     img.save(out)
     return out
 
