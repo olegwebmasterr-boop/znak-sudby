@@ -2,12 +2,16 @@
 """Ежедневные рубрики канала МАКС «Знак судьбы» для GitHub Actions.
 Утро 9:00 МСК — «число ангела дня» (день месяца дважды, ядро = сумма цифр).
 Вечер 19:00 МСК — «карта дня» (аркан по seed=ддммгггг, честный смысл).
-Публикация: MAX Bot API, POST /messages?chat_id=..., заголовок Authorization.
-Текст постов без обещаний гарантий/диагнозов — уважение к читателю.
+Каждый пост идёт с ОБЛОЖКОЙ (PIL, рисуется в рантайме: число дня / аркан
+прямо на картинке), картинка сверху, текст снизу. Тексты без обещаний
+гарантий/диагнозов — уважение к читателю.
+Публикация: POST /uploads?type=image -> PUT файла -> POST /messages?chat_id=...
+с attachments [{"type":"image","payload":{"token":...}}].
 """
-import json, random, sys, urllib.request
+import json, os, random, ssl, subprocess, sys, urllib.request
 
-CHAT_ID_ENV = None  # берём из env в момент поста
+MAX_API = "https://platform-api2.max.ru"
+CTX = ssl._create_unverified_context()  # песочница не доверяет CA MAX; на runner безвредно
 
 # --- ядро числа: короткие честные тексты ---
 CORE = {
@@ -60,60 +64,129 @@ CARDS = {
 SIG = "Разборы — на znak-sudby.ru | Канал «Знак судьбы»"
 
 
-def angel_number_post(date_str: str) -> str:
-    dd, mm, yyyy = date_str.split(".")
-    dd = dd.lstrip("0")
-    shown = dd * 2 if len(dd) == 1 else dd * 2          # 21 → 2121, 3 → 33
+def angel_number_post(date_str: str):
+    dd = date_str[:2].lstrip("0")
+    shown = dd * 2                                   # 21 → 2121, 3 → 33
     core_n = sum(int(c) for c in shown)
     while core_n > 9:
         core_n = sum(int(c) for c in str(core_n))
     name, tip, question = CORE[core_n]
     tip = tip[0].upper() + tip[1:]
-    return (f"✦ Число ангела дня — {shown}\n\n"
+    text = (f"✦ Число ангела дня — {shown}\n\n"
             f"Ядро дня — {core_n}: {name}. {tip}.\n\n{question}\n\n{SIG}")
+    return text, shown, core_n, name
 
 
-def card_post(date_str: str) -> str:
+def card_post(date_str: str):
     seed = int(date_str.replace(".", ""))
     n = random.Random(seed).randrange(22)
     name, text = CARDS[n]
     text = text[0].upper() + text[1:]
-    return f"✦ Карта дня — {name}\n\n{text}\n\n{question_placeholder()}{SIG}"
+    full = (f"✦ Карта дня — {name}\n\n{text}\n\n"
+            f"Один вопрос себе на вечер: где сегодня моя честность с собой?\n\n{SIG}")
+    return full, name, n
 
 
-def question_placeholder() -> str:
-    return "Один вопрос себе на вечер: где сегодня моя честность с собой?\n\n"
+# ---------- обложка ----------
+def _font_path():
+    local = os.path.join(os.path.dirname(os.path.abspath(__file__)), "img", "DejaVuSans-Bold.ttf")
+    if os.path.exists(local):
+        return local
+    for p in ("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+              "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf"):
+        if os.path.exists(p):
+            return p
+    raise FileNotFoundError("DejaVuSans-Bold.ttf не найден (шрифт должен лежать в bot/img/)")
 
 
-def post_max(text: str, chat_id: str, token: str):
-    url = f"https://platform-api2.max.ru/messages?chat_id={chat_id}"
-    req = urllib.request.Request(url, data=json.dumps({"text": text}).encode(), method="POST",
+def make_cover(mode: str, date_str: str, big: str, small: str, out: str = "/tmp/max_cover.png"):
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError:  # ubuntu runner: ставим сами, интернета хватает
+        subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "pillow"], check=True)
+        from PIL import Image, ImageDraw, ImageFont
+
+    W, H = 1280, 720
+    img = Image.new("RGB", (W, H), (23, 18, 43))
+    d = ImageDraw.Draw(img)
+    top, bottom = (23, 18, 43), (63, 37, 92)          # индиго -> фиолет
+    for y in range(H):
+        t = y / H
+        d.line([(0, y), (W, y)], fill=tuple(int(a + (b - a) * t) for a, b in zip(top, bottom)))
+    rng = random.Random(date_str + mode)
+    for _ in range(150):                              # звёздное небо
+        x, y = rng.randrange(W), rng.randrange(H)
+        r = rng.choice((1, 1, 1, 2, 2, 3))
+        v = rng.choice((90, 140, 200, 255))
+        d.ellipse([x - r, y - r, x + r, y + r], fill=(v, v, min(255, v + 25)))
+    cx, cy, R = W // 2, 350, 215                      # золотое кольцо
+    d.ellipse([cx - R, cy - R, cx + R, cy + R], outline=(214, 178, 74), width=4)
+    d.ellipse([cx - R - 7, cy - R - 7, cx + R + 7, cy + R + 7], outline=(214, 178, 74), width=1)
+    f_small = ImageFont.truetype(_font_path(), 46)
+    f_big = ImageFont.truetype(_font_path(), 150 if len(big) <= 4 else 105)
+    f_date = ImageFont.truetype(_font_path(), 30)
+
+    def center(text, font, y, fill):
+        d.text(((W - d.textlength(text, font=font)) / 2, y), text, font=font, fill=fill)
+
+    center("· " + small + " ·", f_small, 92, (214, 178, 74))
+    center(big, f_big, 268, (255, 243, 214))
+    center(date_str, f_date, 626, (168, 152, 192))
+    img.save(out)
+    return out
+
+
+def upload_cover(path: str, token: str) -> str:
+    # 1) POST /uploads?type=image -> {url}; 2) POST multipart файла на url ->
+    #    {"photos": {"0": {"token": ...}}}; 3) вернуть token для attachments.
+    req = urllib.request.Request(f"{MAX_API}/uploads?type=image", method="POST",
+                                 headers={"Authorization": token})
+    with urllib.request.urlopen(req, timeout=30, context=CTX) as r:
+        up = json.loads(r.read().decode())
+    out = subprocess.run(["curl", "-sk", "-X", "POST", up["url"],
+                          "-F", f"file=@{path};type=image/png"],
+                         capture_output=True, text=True, timeout=120)
+    photos = json.loads(out.stdout)["photos"]
+    return list(photos.values())[0]["token"]
+
+
+def post_max(text: str, chat_id: str, token: str, image_path: str | None = None):
+    body = {"text": text}
+    if image_path:
+        body["attachments"] = [{"type": "image", "payload": {"token": upload_cover(image_path, token)}}]
+    req = urllib.request.Request(f"{MAX_API}/messages?chat_id={chat_id}",
+                                 data=json.dumps(body).encode(), method="POST",
                                  headers={"Authorization": token, "Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=30) as r:
+    with urllib.request.urlopen(req, timeout=60, context=CTX) as r:
         return json.loads(r.read().decode())
 
 
 def main():
     import datetime
-    mode, date_str = sys.argv[1], datetime.date.today().strftime("%d.%m.%Y")
-    if mode == "morning":
-        text = angel_number_post(date_str)
-    elif mode == "evening":
-        text = card_post(date_str)
-    elif mode == "auto":  # для одного workflow с двумя cron: по UTC-часу
-        import datetime as _dt
-        mode = "morning" if 5 <= _dt.datetime.utcnow().hour < 12 else "evening"
-    elif mode == "print":  # локальная проверка обеих рубрик
-        print(angel_number_post(date_str)); print("\n" + "=" * 40 + "\n"); print(card_post(date_str)); return
-    else:
-        sys.exit("mode: morning | evening | print")
-    if mode == "print" or "--print" in sys.argv:
-        print(text); return
-    import os
+    arg = sys.argv[1] if len(sys.argv) > 1 else "print"
+    date_str = datetime.date.today().strftime("%d.%m.%Y")
+    if arg == "print":                                # локальная проверка текстов и обложек
+        t1, shown, core_n, name = angel_number_post(date_str)
+        t2, card, n = card_post(date_str)
+        print(t1, "\n" + "=" * 40 + "\n", t2)
+        print("[cover morning]:", make_cover("morning", date_str, shown, "ЧИСЛО АНГЕЛА ДНЯ", "/tmp/cover_morning.png"))
+        print("[cover evening]:", make_cover("evening", date_str, card.upper(), "КАРТА ДНЯ", "/tmp/cover_evening.png"))
+        return
+    mode = arg
+    if mode == "auto":                                # один workflow, два cron: по UTC-часу
+        mode = "morning" if 5 <= datetime.datetime.utcnow().hour < 12 else "evening"
     chat_id, token = os.environ.get("MAX_CHAT_ID"), os.environ.get("MAX_BOT_TOKEN")
     if not (chat_id and token):
         sys.exit("Нет MAX_CHAT_ID/MAX_BOT_TOKEN (GitHub Secrets)")
-    post_max(text, chat_id, token)
+    if mode == "morning":
+        text, shown, core_n, name = angel_number_post(date_str)
+        cover = make_cover(mode, date_str, shown, "ЧИСЛО АНГЕЛА ДНЯ")
+    elif mode == "evening":
+        text, card, n = card_post(date_str)
+        cover = make_cover(mode, date_str, card.upper(), "КАРТА ДНЯ")
+    else:
+        sys.exit("mode: morning | evening | auto | print")
+    post_max(text, chat_id, token, cover)
     print("OK posted", mode, date_str)
 
 
