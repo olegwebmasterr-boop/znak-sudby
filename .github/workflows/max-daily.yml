@@ -1,0 +1,18 @@
+name: MAX daily posts
+on:
+  schedule:
+    - cron: '0 6 * * *'    # 9:00 МСК — число ангела дня
+    - cron: '0 16 * * *'   # 19:00 МСК — карта дня
+  workflow_dispatch: {}
+permissions: {}
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish rubric
+        env:
+          MAX_BOT_TOKEN: ${{ secrets.MAX_BOT_TOKEN }}
+          MAX_CHAT_ID: ${{ secrets.MAX_CHAT_ID }}
+        run: python3 bot/max_daily.py auto
