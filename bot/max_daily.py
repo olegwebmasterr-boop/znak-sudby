@@ -106,7 +106,23 @@ PALETTES = [
 ]
 
 
+def _static_cover(mode: str) -> str:
+    """Готовая обложка из репо (bot/img/cover_<mode>.png) — когда PIL недоступен."""
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "img", f"cover_{mode}.png")
+    if os.path.exists(p):
+        return p
+    raise FileNotFoundError(f"нет ни PIL, ни статичной обложки {p}")
+
+
 def make_cover(mode: str, date_str: str, big: str, small: str, out: str = "/tmp/max_cover.png"):
+    try:
+        return _make_cover_pil(mode, date_str, big, small, out)
+    except Exception as e:  # PIL не поставился на runner — постим со статичной обложкой
+        print("WARN PIL недоступен, беру статичную обложку:", repr(e)[:120])
+        return _static_cover(mode)
+
+
+def _make_cover_pil(mode: str, date_str: str, big: str, small: str, out: str = "/tmp/max_cover.png"):
     try:
         from PIL import Image, ImageDraw, ImageFont
     except ImportError:  # ubuntu runner: ставим сами (PEP 668 -> --break-system-packages)
