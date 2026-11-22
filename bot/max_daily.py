@@ -109,8 +109,15 @@ PALETTES = [
 def make_cover(mode: str, date_str: str, big: str, small: str, out: str = "/tmp/max_cover.png"):
     try:
         from PIL import Image, ImageDraw, ImageFont
-    except ImportError:  # ubuntu runner: ставим сами, интернета хватает
-        subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "pillow"], check=True)
+    except ImportError:  # ubuntu runner: ставим сами (PEP 668 -> --break-system-packages)
+        for args in ([sys.executable, "-m", "pip", "install", "--break-system-packages", "--quiet", "pillow"],
+                     [sys.executable, "-m", "pip", "install", "--user", "--quiet", "pillow"]):
+            try:
+                subprocess.run(args, check=True, capture_output=True, timeout=180)
+                from PIL import Image, ImageDraw, ImageFont  # noqa: F401
+                break
+            except Exception:
+                continue
         from PIL import Image, ImageDraw, ImageFont
 
     rng = random.Random(date_str + mode)
@@ -207,7 +214,11 @@ def main():
         cover = make_cover(mode, date_str, card.upper(), "КАРТА ДНЯ")
     else:
         sys.exit("mode: morning | evening | auto | print")
-    post_max(text, chat_id, token, cover)
+    try:
+        post_max(text, chat_id, token, cover)
+    except Exception as e:  # обложка/загрузка не удалась — пост всё равно выходит текстом
+        print("WARN без обложки:", repr(e)[:160])
+        post_max(text, chat_id, token, None)
     print("OK posted", mode, date_str)
 
 
