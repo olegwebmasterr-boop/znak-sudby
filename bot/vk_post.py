@@ -134,9 +134,25 @@ def upload_photo(path, token, group_id):
     return f"photo{p['owner_id']}_{p['id']}"
 
 
-def post(text, token, group_id, image_path=None):
+def preloaded_photo(date_str, group_id):
+    """Фото, заранее загруженные в группу вручную: bot/img/photo_ids.json {"дд.мм": "456239017"}.
+    Возврат attachment-строки photo-<group>_<id> (фото принадлежит группе)."""
+    p = os.path.join(BOT, "img", "photo_ids.json")
+    if os.path.exists(p):
+        try:
+            pid = json.load(open(p, encoding="utf-8")).get(date_str[:5])
+            if pid:
+                return pid if pid.startswith("photo") else f"photo-{group_id}_{pid}"
+        except Exception as e:
+            print("WARN photo_ids.json:", repr(e)[:80])
+    return None
+
+
+def post(text, token, group_id, image_path=None, photo_id=None):
     attachments = []
-    if image_path:
+    if photo_id:
+        attachments.append(photo_id)
+    elif image_path:
         try:
             attachments.append(upload_photo(image_path, token, group_id))
         except Exception as e:
@@ -164,8 +180,9 @@ def main():
     token, group_id = os.environ.get("VK_ACCESS_TOKEN"), os.environ.get("VK_GROUP_ID")
     if not (token and group_id):
         sys.exit("Нет VK_ACCESS_TOKEN/VK_GROUP_ID (GitHub Secrets)")
-    pid = post(text, token, group_id, cover(date_str))
-    print("OK posted vk", date_str, "post_id", pid, "(custom)" if custom else "(queue)")
+    pid = post(text, token, group_id, cover(date_str), preloaded_photo(date_str, group_id))
+    print("OK posted vk", date_str, "post_id", pid,
+          "(custom)" if custom else "(queue)", "| фото:", "заранее загруженное" if preloaded_photo(date_str, group_id) else "upload/нет")
 
 
 if __name__ == "__main__":
