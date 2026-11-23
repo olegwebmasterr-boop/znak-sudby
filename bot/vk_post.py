@@ -5,6 +5,9 @@
 Обложка: 1) bot/img/next_cover_vk_<дд.мм>.png (заготовка агента) 2) PIL из max_daily
 3) без картинки (пост текстом — ВК допускает).
 Режимы: print (локальная проверка текста+обложки), post (публикация; по умолчанию).
+Свободный пост: env VK_CUSTOM_TEXT (через GitHub Actions «Run workflow», поле text)
+или CLI-аргумент «post ТЕКСТ» — публикуется заданный текст вместо очереди; суффикс
+сайта и обложка-карта дня добавляются автоматически.
 VK API: photos.getWallUploadServer → upload → photos.saveWallPhoto → wall.post.
 Токен: ЛУЧШИЙ вариант — ключ доступа сообщества (Управление → Работа с API → Создать
 ключ; права: «Создание публикаций» + «Фотографии», не истекает). Подойдёт и токен
@@ -86,7 +89,13 @@ def post(text, token, group_id, image_path=None):
 def main():
     import sys
     date_str = datetime.date.today().strftime("%d.%m.%Y")
-    text = queue_text(date_str)
+    # Свободный пост: env VK_CUSTOM_TEXT (GitHub Actions inputs) или 2-й аргумент CLI.
+    custom = os.environ.get("VK_CUSTOM_TEXT", "").strip()
+    if len(sys.argv) > 2 and sys.argv[1] == "post" and sys.argv[2].strip():
+        custom = sys.argv[2].strip()
+    text = custom if custom else queue_text(date_str)
+    if not text.rstrip().endswith(SITE):
+        text = text.rstrip() + "\n\n" + SITE
     if len(sys.argv) > 1 and sys.argv[1] == "print":
         print(text, "\n" + "=" * 40, "\nдлина:", len(text))
         print("[cover]:", cover(date_str))
@@ -95,7 +104,7 @@ def main():
     if not (token and group_id):
         sys.exit("Нет VK_ACCESS_TOKEN/VK_GROUP_ID (GitHub Secrets)")
     pid = post(text, token, group_id, cover(date_str))
-    print("OK posted vk", date_str, "post_id", pid)
+    print("OK posted vk", date_str, "post_id", pid, "(custom)" if custom else "(queue)")
 
 
 if __name__ == "__main__":
