@@ -5,8 +5,10 @@
 Обложка: 1) bot/img/next_cover_vk_<дд.мм>.png (заготовка агента) 2) PIL из max_daily
 3) без картинки (пост текстом — ВК допускает).
 Режимы: print (локальная проверка текста+обложки), post (публикация; по умолчанию).
-VK API: photos.getWallUploadServer → upload → photos.saveWallPhoto → wall.post,
-токен пользователя scope wall,photos,offline. Секреты: VK_ACCESS_TOKEN, VK_GROUP_ID
+VK API: photos.getWallUploadServer → upload → photos.saveWallPhoto → wall.post.
+Токен: ЛУЧШИЙ вариант — ключ доступа сообщества (Управление → Работа с API → Создать
+ключ; права: «Создание публикаций» + «Фотографии», не истекает). Подойдёт и токен
+пользователя Standalone scope wall,photos,offline. Секреты: VK_ACCESS_TOKEN, VK_GROUP_ID
 (числовой id сообщества, БЕЗ минуса — скрипт минусует сам).
 """
 import json, os, datetime, urllib.request, urllib.parse, ssl
