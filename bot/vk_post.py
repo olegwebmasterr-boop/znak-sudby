@@ -56,8 +56,69 @@ def cover(date_str):
         name, _ = md.CARDS[n]
         return md._make_cover_pil("vk", date_str, name.upper(), "КАРТА ДНЯ", "/tmp/vk_cover.png")
     except Exception as e:
-        print("WARN обложка недоступна:", repr(e)[:120])
+        print("WARN PIL обложка недоступна:", repr(e)[:120])
+    try:
+        pure_png_cover("/tmp/vk_cover.png", date_str)
+        return "/tmp/vk_cover.png"
+    except Exception as e:
+        print("WARN fallback обложка:", repr(e)[:120])
         return None
+
+
+def pure_png_cover(path, date_str):
+    """Обложка БЕЗ PIL (чистый python + zlib): ночное небо, звёзды, восьмиконечная звезда."""
+    import random, struct, zlib
+    W, H = 1280, 768
+    rnd = random.Random(int(date_str.replace(".", "")))
+    top, bot = (9, 12, 34), (26, 18, 58)
+    px = bytearray(W * H * 3)
+    for y in range(H):
+        t = y / (H - 1)
+        row = bytes([int(top[0] + (bot[0] - top[0]) * t),
+                     int(top[1] + (bot[1] - top[1]) * t),
+                     int(top[2] + (bot[2] - top[2]) * t)]) * W
+        px[y * W * 3:(y + 1) * W * 3] = row
+
+    def set(x, y, rgb):
+        if 0 <= x < W and 0 <= y < H:
+            i = (y * W + x) * 3
+            px[i:i + 3] = bytes(rgb)
+
+    for _ in range(110):
+        x, y = rnd.randrange(W), rnd.randrange(H)
+        c = rnd.choice([(235, 238, 255), (255, 236, 180), (200, 210, 255)])
+        for dx, dy in ((0, 0), (1, 0), (0, 1), (1, 1)):
+            set(x + dx, y + dy, c)
+    cx, cy, R = W // 2, H // 2 - 20, 185
+    q = int(R * 0.70)
+    for y in range(cy - R, cy + R + 1):
+        dy = y - cy
+        for x in range(cx - R, cx + R + 1):
+            dx = x - cx
+            if (abs(dx) + abs(dy) <= R) or (abs(dx) <= q and abs(dy) <= q):
+                d = (dx * dx + dy * dy) ** 0.5 / R
+                col = (255, 224, 130) if d < 0.45 else ((244, 196, 84) if d < 0.8 else (226, 176, 66))
+                set(x, y, col)
+    for k, w in ((0, 300), (1, 200), (2, 120)):
+        y = cy + R + 40 + k * 26
+        x0 = cx - w // 2
+        for x in range(x0, x0 + w):
+            fade = int(120 * (1 - abs(x - cx) / (w / 2)) ** 2)
+            set(x, y, (190, 160, 90) if fade < 60 else (230, 200, 120))
+
+    def chunk(tag, data):
+        c = tag + data
+        return struct.pack(">I", len(data)) + c + struct.pack(">I", zlib.crc32(c) & 0xFFFFFFFF)
+
+    raw = bytearray()
+    for y in range(H):
+        raw.append(0)
+        raw += px[y * W * 3:(y + 1) * W * 3]
+    png = (b"\x89PNG\r\n\x1a\n"
+           + chunk(b"IHDR", struct.pack(">IIBBBBB", W, H, 8, 2, 0, 0, 0))
+           + chunk(b"IDAT", zlib.compress(bytes(raw), 6))
+           + chunk(b"IEND", b""))
+    open(path, "wb").write(png)
 
 
 def upload_photo(path, token, group_id):
