@@ -180,9 +180,19 @@ def main():
     token, group_id = os.environ.get("VK_ACCESS_TOKEN"), os.environ.get("VK_GROUP_ID")
     if not (token and group_id):
         sys.exit("Нет VK_ACCESS_TOKEN/VK_GROUP_ID (GitHub Secrets)")
-    pid = post(text, token, group_id, cover(date_str), preloaded_photo(date_str, group_id))
+    test_del = os.environ.get("VK_DELETE_POST_ID", "").strip()
+    if test_del:
+        print("DELETE post:", api("wall.delete",
+              {"owner_id": -int(group_id), "post_id": test_del}, token))
+        return
+    test_attach = os.environ.get("VK_TEST_ATTACH", "").strip()
+    pre = preloaded_photo(date_str, group_id)
+    pid = post(text, token, group_id, cover(date_str), pre or (test_attach or None))
+    if test_attach:
+        print("TEST_ATTACH used:", test_attach)
     print("OK posted vk", date_str, "post_id", pid,
-          "(custom)" if custom else "(queue)", "| фото:", "заранее загруженное" if preloaded_photo(date_str, group_id) else "upload/нет")
+          "(custom)" if custom else "(queue)", "| фото:",
+          "заранее загруженное" if pre else ("тест-attachment" if test_attach else "upload/нет"))
 
 
 if __name__ == "__main__":
