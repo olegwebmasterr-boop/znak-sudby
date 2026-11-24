@@ -263,7 +263,7 @@ def main():
                     print("upload resp:", str(res)[:140])
                     saved = api("docs.save", {"file": res["file"], "title": "Карта дня"}, token)
                     print("docs.save resp:", str(saved)[:220])
-                    d = saved[0] if isinstance(saved, list) else saved
+                    d = saved.get("doc") if isinstance(saved, dict) and "doc" in saved else (saved[0] if isinstance(saved, list) else saved)
                     owner = d.get("owner_id", d.get("group_id")) if isinstance(d, dict) else None
                     if owner is None:
                         raise RuntimeError(f"docs.save нет owner_id: {str(d)[:150]}")
