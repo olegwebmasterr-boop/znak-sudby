@@ -291,6 +291,22 @@ def main():
             except Exception as e:
                 print("wall.edit FAIL:", repr(e)[:250])
             return
+        if fval == "post2":
+            et = json.load(open(os.path.join(BOT, "img", "edit_task.json"), encoding="utf-8"))
+            att = None
+            gif = os.path.join(BOT, et.get("gif", ""))
+            if os.path.exists(gif):
+                try:
+                    att = upload_photo(gif, token, group_id)
+                    print("post2 attachment:", att)
+                except Exception as e:
+                    print("post2 WARN картинка:", repr(e)[:150])
+            text = et["text"]
+            if not text.rstrip().endswith(SITE):
+                text = text.rstrip() + "\n\n" + SITE
+            pid = post(text, token, group_id, None, att)
+            print("post2 wall.post OK post_id:", pid)
+            return
         if fval.isdigit():
             print("DELETE:", api("wall.delete",
                   {"owner_id": -int(group_id), "post_id": fval}, token))
