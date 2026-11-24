@@ -45,9 +45,10 @@ def queue_text(date_str):
 
 
 def cover(date_str):
-    prep = os.path.join(BOT, "img", f"next_cover_vk_{date_str[:5]}.png")
-    if os.path.exists(prep):
-        return prep
+    for ext in (".png", ".gif"):
+        prep = os.path.join(BOT, "img", f"next_cover_vk_{date_str[:5]}{ext}")
+        if os.path.exists(prep):
+            return prep
     try:
         import max_daily as md
         seed = int(date_str.replace(".", ""))
@@ -122,16 +123,13 @@ def pure_png_cover(path, date_str):
 
 
 def upload_photo(path, token, group_id):
-    up = api("photos.getWallUploadServer", {"group_id": group_id}, token)
-    import subprocess
-    out = subprocess.run(["curl", "-s", "-X", "POST", up["upload_url"],
-                          "-F", f"photo=@{path};type=image/png"],
-                         capture_output=True, text=True, timeout=120)
-    saved = json.loads(out.stdout)
-    res = api("photos.saveWallPhoto", {"group_id": group_id,
-              "server": saved["server"], "photo": saved["photo"], "hash": saved["hash"]}, token)
-    p = res[0]
-    return f"photo{p['owner_id']}_{p['id']}"
+    """Картинка = GIF-документ сообщества: docs.getWallUploadServer → upload → docs.save.
+    (photos.* с групповым ключом недоступны — проверено пробами 24.11.)"""
+    up = api("docs.getWallUploadServer", {"group_id": int(group_id)}, token)
+    res = multipart_upload(up["upload_url"], path, field="file")
+    saved = api("docs.save", {"file": res["file"], "title": "Карта дня"}, token)
+    d = saved[0] if isinstance(saved, list) else saved
+    return f"doc{d['owner_id']}_{d['id']}"
 
 
 def preloaded_photo(date_str, group_id):
