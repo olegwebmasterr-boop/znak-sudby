@@ -274,6 +274,23 @@ def main():
                 except Exception as e:
                     print("docs.save/wall.post FAIL:", repr(e)[:220])
             return
+        if fval == "edit":
+            et = json.load(open(os.path.join(BOT, "img", "edit_task.json"), encoding="utf-8"))
+            att = ""
+            gif = os.path.join(BOT, et.get("gif", ""))
+            if os.path.exists(gif):
+                try:
+                    att = upload_photo(gif, token, group_id)
+                    print("edit attachment:", att)
+                except Exception as e:
+                    print("edit WARN картинка:", repr(e)[:150])
+            try:
+                r = api("wall.edit", {"owner_id": -int(group_id), "post_id": et["post_id"],
+                         "message": et["text"], "attachments": att}, token)
+                print("wall.edit OK:", r, "| post_id:", et["post_id"])
+            except Exception as e:
+                print("wall.edit FAIL:", repr(e)[:250])
+            return
         if fval.isdigit():
             print("DELETE:", api("wall.delete",
                   {"owner_id": -int(group_id), "post_id": fval}, token))
