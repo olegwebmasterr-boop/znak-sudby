@@ -262,8 +262,12 @@ def main():
                     res = multipart_upload(up["upload_url"], gif, field="file")
                     print("upload resp:", str(res)[:140])
                     saved = api("docs.save", {"file": res["file"], "title": "Карта дня"}, token)
+                    print("docs.save resp:", str(saved)[:220])
                     d = saved[0] if isinstance(saved, list) else saved
-                    att = f"doc{d['owner_id']}_{d['id']}"
+                    owner = d.get("owner_id", d.get("group_id")) if isinstance(d, dict) else None
+                    if owner is None:
+                        raise RuntimeError(f"docs.save нет owner_id: {str(d)[:150]}")
+                    att = f"doc{owner}_{d['id']}"
                     print("docs attachment:", att)
                     pid = post("Тест: карта дня как GIF-документ. Сейчас удалю.", token, group_id, None, att)
                     print("wall.post OK post_id:", pid)
