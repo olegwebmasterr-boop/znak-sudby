@@ -148,6 +148,20 @@ def preloaded_photo(date_str, group_id):
     return None
 
 
+def multipart_upload(url, path, field="photo"):
+    """POST файла на upload-URL ВК (multipart/form-data) без curl."""
+    import uuid
+    b = uuid.uuid4().hex
+    mime = "image/png" if path.endswith(".png") else "image/jpeg"
+    body = (f"--{b}\r\nContent-Disposition: form-data; name=\"{field}\"; "
+            f"filename=\"{os.path.basename(path)}\"\r\nContent-Type: {mime}\r\n\r\n").encode() \
+           + open(path, "rb").read() + f"\r\n--{b}--\r\n".encode()
+    req = urllib.request.Request(url, data=body,
+                                 headers={"Content-Type": f"multipart/form-data; boundary={b}"})
+    with urllib.request.urlopen(req, timeout=120, context=ssl._create_unverified_context()) as r:
+        return json.loads(r.read().decode())
+
+
 def post(text, token, group_id, image_path=None, photo_id=None):
     attachments = []
     if photo_id:
@@ -185,6 +199,33 @@ def main():
         print("DELETE post:", api("wall.delete",
               {"owner_id": -int(group_id), "post_id": test_del}, token))
         return
+    # Флаг-файл bot/img/test_msg.flag: "on" = тест messages-фото → стена;
+    # число = удалить этот post_id; "off"/нет = обычная публикация.
+    flag = os.path.join(BOT, "img", "test_msg.flag")
+    if os.path.exists(flag):
+        fval = open(flag, encoding="utf-8").read().strip()
+        if fval == "on":
+            img = os.path.join(BOT, "img", "test_msg_card.png")
+            try:
+                up = api("photos.getMessagesUploadServer", {"group_id": int(group_id)}, token)
+                print("1) getMessagesUploadServer: OK")
+                res = multipart_upload(up["upload_url"], img)
+                print("2) upload resp keys:", sorted(res.keys()))
+                saved = api("photos.saveMessagesPhoto",
+                            {"server": res["server"], "photo": res["photo"], "hash": res["hash"]}, token)
+                ph = saved[0] if isinstance(saved, list) else saved
+                att = f"photo{ph['owner_id']}_{ph['id']}"
+                print("3) attachment:", att)
+                pid = post("Тест автоматической картинки: бот загрузил её сам и прикрепил к посту. Сейчас удалю.",
+                           token, group_id, None, att)
+                print("4) wall.post OK post_id:", pid, "— проверь глазами, видна ли КАРТИНКА в посте")
+            except Exception as e:
+                print("TEST-MSG-PHOTO FAIL:", repr(e)[:250])
+            return
+        if fval.isdigit():
+            print("DELETE:", api("wall.delete",
+                  {"owner_id": -int(group_id), "post_id": fval}, token))
+            return
     test_attach = os.environ.get("VK_TEST_ATTACH", "").strip()
     pre = preloaded_photo(date_str, group_id)
     pid = post(text, token, group_id, cover(date_str), pre or (test_attach or None))
