@@ -222,6 +222,27 @@ def main():
             except Exception as e:
                 print("TEST-MSG-PHOTO FAIL:", repr(e)[:250])
             return
+        if fval == "on2":
+            gid = int(group_id)
+            album = None
+            try:
+                album = api("photos.createAlbum", {"title": "test-album-zs", "group_id": gid}, token)
+                print("createAlbum OK album_id:", album["album_id"])
+            except Exception as e:
+                print("createAlbum FAIL:", repr(e)[:160])
+            tests = [
+                ("photos.getWallUploadServer", {"group_id": gid}),
+                ("photos.getUploadServer", {"group_id": gid, "album_id": album["album_id"] if album else 0}),
+                ("photos.getOwnerPhotoUploadServer", {"owner_id": -gid}),
+                ("docs.getWallUploadServer", {"group_id": gid, "type": "post"}),
+            ]
+            for m, p in tests:
+                try:
+                    r = api(m, p, token)
+                    print(m, "OK", str(r)[:130])
+                except Exception as e:
+                    print(m, "FAIL:", repr(e)[:160])
+            return
         if fval.isdigit():
             print("DELETE:", api("wall.delete",
                   {"owner_id": -int(group_id), "post_id": fval}, token))
