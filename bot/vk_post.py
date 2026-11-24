@@ -243,6 +243,35 @@ def main():
                 except Exception as e:
                     print(m, "FAIL:", repr(e)[:160])
             return
+        if fval == "on3":
+            gid = int(group_id)
+            up = None
+            used = None
+            for t in (None, "post", "photo", "doc", "video", "gif"):
+                try:
+                    p = {"group_id": gid}
+                    if t:
+                        p["type"] = t
+                    up = api("docs.getWallUploadServer", p, token)
+                    used = t
+                    print("docs.getWallUploadServer OK with type", t, "| url:", str(up.get("upload_url"))[:60])
+                    break
+                except Exception as e:
+                    print("docs type", t, "FAIL:", repr(e)[:130])
+            gif = os.path.join(BOT, "img", "test_card.gif")
+            if up and os.path.exists(gif):
+                try:
+                    res = multipart_upload(up["upload_url"], gif, field="file")
+                    print("upload resp:", str(res)[:140])
+                    saved = api("docs.save", {"file": res["file"], "title": "Карта дня"}, token)
+                    d = saved[0] if isinstance(saved, list) else saved
+                    att = f"doc{d['owner_id']}_{d['id']}"
+                    print("docs attachment:", att)
+                    pid = post("Тест: карта дня как GIF-документ. Сейчас удалю.", token, group_id, None, att)
+                    print("wall.post OK post_id:", pid)
+                except Exception as e:
+                    print("docs.save/wall.post FAIL:", repr(e)[:220])
+            return
         if fval.isdigit():
             print("DELETE:", api("wall.delete",
                   {"owner_id": -int(group_id), "post_id": fval}, token))
