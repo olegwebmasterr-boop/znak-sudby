@@ -128,7 +128,7 @@ def upload_photo(path, token, group_id):
     up = api("docs.getWallUploadServer", {"group_id": int(group_id)}, token)
     res = multipart_upload(up["upload_url"], path, field="file")
     saved = api("docs.save", {"file": res["file"], "title": "Карта дня"}, token)
-    d = saved[0] if isinstance(saved, list) else saved
+    d = saved.get("doc") if isinstance(saved, dict) and "doc" in saved else (saved[0] if isinstance(saved, list) else saved)
     return f"doc{d['owner_id']}_{d['id']}"
 
 
