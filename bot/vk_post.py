@@ -343,6 +343,14 @@ def main():
     pid = post(text, token, group_id, cover(date_str), pre or (test_attach or None))
     if test_attach:
         print("TEST_ATTACH used:", test_attach)
+    # факт-контроль: что реально прикреплено к посту (24.11 пост ушёл без картинки
+    # из-за 504 — теперь видно в логе сразу)
+    try:
+        got = api("wall.getById", {"posts": f"-{int(group_id)}_{pid}"}, token)
+        item = (got.get("items") or [{}])[0]
+        print("ATTACH:", ",".join(a.get("type", "?") for a in item.get("attachments", [])) or "НЕТ")
+    except Exception as e:
+        print("WARN getById:", repr(e)[:80])
     print("OK posted vk", date_str, "post_id", pid,
           "(custom)" if custom else "(queue)", "| фото:",
           "заранее загруженное" if pre else ("тест-attachment" if test_attach else "upload/нет"))
