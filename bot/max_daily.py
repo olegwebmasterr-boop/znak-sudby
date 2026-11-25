@@ -254,7 +254,12 @@ def _make_cover_pil(mode: str, date_str: str, big: str, small: str, out: str = "
     d.ellipse([cx - R, cy - R, cx + R, cy + R], outline=pal[2], width=5)
     d.ellipse([cx - R - 8, cy - R - 8, cx + R + 8, cy + R + 8], outline=pal[2], width=1)
     f_small = ImageFont.truetype(_font_path(), 52)
-    f_big = ImageFont.truetype(_font_path(), 210 if len(big) <= 4 else 125)
+    # авто-fit: длинные слова («ИМПЕРАТРИЦА», «ПОВЕШЕННЫЙ») уменьшаются до вписывания
+    # в холст — 26.11 и 29.11 при фикс. 125px обрезались с обеих сторон
+    size_big = 210 if len(big) <= 4 else 125
+    while size_big > 44 and d.textlength(big, font=ImageFont.truetype(_font_path(), size_big)) > W - 80:
+        size_big -= 8
+    f_big = ImageFont.truetype(_font_path(), size_big)
     f_date = ImageFont.truetype(_font_path(), 34)
 
     def center(text, font, y, fill):
