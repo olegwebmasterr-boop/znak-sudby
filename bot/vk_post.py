@@ -45,7 +45,7 @@ def queue_text(date_str):
 
 
 def cover(date_str):
-    for ext in (".png", ".gif"):
+    for ext in (".gif", ".png"):
         prep = os.path.join(BOT, "img", f"next_cover_vk_{date_str[:5]}{ext}")
         if os.path.exists(prep):
             return prep
@@ -124,12 +124,23 @@ def pure_png_cover(path, date_str):
 
 def upload_photo(path, token, group_id):
     """Картинка = GIF-документ сообщества: docs.getWallUploadServer → upload → docs.save.
-    (photos.* с групповым ключом недоступны — проверено пробами 24.11.)"""
+    (photos.* с групповым ключом недоступны — проверено пробами 24.11.)
+    3 попытки с паузой: 24.11 сервер документов ВК отдавал 504 Gateway Time-out —
+    пост ушёл текстом; повтор через ~20 с 504 проходит."""
     up = api("docs.getWallUploadServer", {"group_id": int(group_id)}, token)
-    res = multipart_upload(up["upload_url"], path, field="file")
-    saved = api("docs.save", {"file": res["file"], "title": "Карта дня"}, token)
-    d = saved.get("doc") if isinstance(saved, dict) and "doc" in saved else (saved[0] if isinstance(saved, list) else saved)
-    return f"doc{d['owner_id']}_{d['id']}"
+    last_err = None
+    for attempt in range(1, 4):
+        try:
+            res = multipart_upload(up["upload_url"], path, field="file")
+            saved = api("docs.save", {"file": res["file"], "title": "Карта дня"}, token)
+            d = saved.get("doc") if isinstance(saved, dict) and "doc" in saved else (saved[0] if isinstance(saved, list) else saved)
+            return f"doc{d['owner_id']}_{d['id']}"
+        except Exception as e:
+            last_err = e
+            print(f"WARN upload попытка {attempt}/3: {repr(e)[:120]}")
+            import time
+            time.sleep(20)
+    raise last_err
 
 
 def preloaded_photo(date_str, group_id):
@@ -150,7 +161,8 @@ def multipart_upload(url, path, field="photo"):
     """POST файла на upload-URL ВК (multipart/form-data) без curl."""
     import uuid
     b = uuid.uuid4().hex
-    mime = "image/png" if path.endswith(".png") else "image/jpeg"
+    mime = ("image/gif" if path.endswith(".gif")
+            else "image/png" if path.endswith(".png") else "image/jpeg")
     body = (f"--{b}\r\nContent-Disposition: form-data; name=\"{field}\"; "
             f"filename=\"{os.path.basename(path)}\"\r\nContent-Type: {mime}\r\n\r\n").encode() \
            + open(path, "rb").read() + f"\r\n--{b}--\r\n".encode()
@@ -177,7 +189,22 @@ def post(text, token, group_id, image_path=None, photo_id=None):
 
 def main():
     import sys
+    # Перевыпуск поста за другую дату: env VK_POST_DATE="дд.мм" ИЛИ флаг-файл
+    # bot/img/post_date.flag ("24.11") — файл используется, т.к. PAT без workflow-scope
+    # не может менять yml; после перевыпуска флаг удаляется из репо.
     date_str = datetime.date.today().strftime("%d.%m.%Y")
+    post_date = os.environ.get("VK_POST_DATE", "").strip()
+    flag_date = os.path.join(BOT, "img", "post_date.flag")
+    if not post_date and os.path.exists(flag_date):
+        try:
+            post_date = open(flag_date, encoding="utf-8").read().strip()
+            if post_date:
+                print("ПЕРЕВЫПУСК из флага:", post_date)
+        except Exception as e:
+            print("WARN post_date.flag:", repr(e)[:80])
+    if post_date:
+        date_str = f"{post_date}.2026"
+        print("ПЕРЕВЫПУСК поста за", date_str)
     # Свободный пост: env VK_CUSTOM_TEXT (GitHub Actions inputs) или 2-й аргумент CLI.
     custom = os.environ.get("VK_CUSTOM_TEXT", "").strip()
     if len(sys.argv) > 2 and sys.argv[1] == "post" and sys.argv[2].strip():
