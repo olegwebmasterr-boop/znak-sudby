@@ -125,21 +125,23 @@ def pure_png_cover(path, date_str):
 def upload_photo(path, token, group_id):
     """Картинка = GIF-документ сообщества: docs.getWallUploadServer → upload → docs.save.
     (photos.* с групповым ключом недоступны — проверено пробами 24.11.)
-    3 попытки с паузой: 24.11 сервер документов ВК отдавал 504 Gateway Time-out —
-    пост ушёл текстом; повтор через ~20 с 504 проходит."""
-    up = api("docs.getWallUploadServer", {"group_id": int(group_id)}, token)
+    5 попыток с паузой 30 с: 26.11 сервер документов ВК отдавал 504 Gateway Time-out
+    и 3 попытки с паузой ушли в одну секунду (sleep внутри except не отрабатывал,
+    пост ушёл текстом — пост 26.11 без картинки). Теперь sleep до попытки, 5 раз."""
+    import time
     last_err = None
-    for attempt in range(1, 4):
+    for attempt in range(1, 6):
+        if attempt > 1:
+            time.sleep(30)
         try:
+            up = api("docs.getWallUploadServer", {"group_id": int(group_id)}, token)
             res = multipart_upload(up["upload_url"], path, field="file")
             saved = api("docs.save", {"file": res["file"], "title": "Карта дня"}, token)
             d = saved.get("doc") if isinstance(saved, dict) and "doc" in saved else (saved[0] if isinstance(saved, list) else saved)
             return f"doc{d['owner_id']}_{d['id']}"
         except Exception as e:
             last_err = e
-            print(f"WARN upload попытка {attempt}/3: {repr(e)[:120]}")
-            import time
-            time.sleep(20)
+            print(f"WARN upload попытка {attempt}/5: {repr(e)[:120]}", flush=True)
     raise last_err
 
 
@@ -177,14 +179,15 @@ def post(text, token, group_id, image_path=None, photo_id=None):
     if photo_id:
         attachments.append(photo_id)
     elif image_path:
-        try:
-            attachments.append(upload_photo(image_path, token, group_id))
-        except Exception as e:
-            print("WARN фото не загрузилось, пост текстом:", repr(e)[:120])
+        # 26.11/27.11 урок: пост без картинки — инцидент (владелец удалял пост).
+        # Если картинка задана, но не загрузилась — НЕ публикуем текстом, а падаем:
+        # workflow станет красным, пост перевыпускается через post_date.flag.
+        attachments.append(upload_photo(image_path, token, group_id))
+        print("docs attachment OK:", attachments[0], flush=True)
     params = {"owner_id": -int(group_id), "from_group": 1, "message": text,
               "signed": 0, "attachments": ",".join(attachments)}
     res = api("wall.post", params, token)
-    return res.get("post_id")
+    return res.get("post_id"), ",".join(attachments)
 
 
 def main():
@@ -241,7 +244,7 @@ def main():
                 ph = saved[0] if isinstance(saved, list) else saved
                 att = f"photo{ph['owner_id']}_{ph['id']}"
                 print("3) attachment:", att)
-                pid = post("Тест автоматической картинки: бот загрузил её сам и прикрепил к посту. Сейчас удалю.",
+                pid, _att = post("Тест автоматической картинки: бот загрузил её сам и прикрепил к посту. Сейчас удалю.",
                            token, group_id, None, att)
                 print("4) wall.post OK post_id:", pid, "— проверь глазами, видна ли КАРТИНКА в посте")
             except Exception as e:
@@ -296,7 +299,7 @@ def main():
                         raise RuntimeError(f"docs.save нет owner_id: {str(d)[:150]}")
                     att = f"doc{owner}_{d['id']}"
                     print("docs attachment:", att)
-                    pid = post("Тест: карта дня как GIF-документ. Сейчас удалю.", token, group_id, None, att)
+                    pid, _att = post("Тест: карта дня как GIF-документ. Сейчас удалю.", token, group_id, None, att)
                     print("wall.post OK post_id:", pid)
                 except Exception as e:
                     print("docs.save/wall.post FAIL:", repr(e)[:220])
@@ -331,7 +334,7 @@ def main():
             text = et["text"]
             if not text.rstrip().endswith(SITE):
                 text = text.rstrip() + "\n\n" + SITE
-            pid = post(text, token, group_id, None, att)
+            pid, _att = post(text, token, group_id, None, att)
             print("post2 wall.post OK post_id:", pid)
             return
         if fval.isdigit():
@@ -340,7 +343,7 @@ def main():
             return
     test_attach = os.environ.get("VK_TEST_ATTACH", "").strip()
     pre = preloaded_photo(date_str, group_id)
-    pid = post(text, token, group_id, cover(date_str), pre or (test_attach or None))
+    pid, att = post(text, token, group_id, cover(date_str), pre or (test_attach or None))
     if test_attach:
         print("TEST_ATTACH used:", test_attach)
     # факт-контроль: что реально прикреплено к посту (24.11 пост ушёл без картинки
@@ -353,7 +356,8 @@ def main():
         print("WARN getById:", repr(e)[:80])
     print("OK posted vk", date_str, "post_id", pid,
           "(custom)" if custom else "(queue)", "| фото:",
-          "заранее загруженное" if pre else ("тест-attachment" if test_attach else "upload/нет"))
+          "заранее загруженное" if pre else ("тест-attachment" if test_attach else
+          ("загружено: " + att if att else "НЕТ (картинка не задана)")))
 
 
 if __name__ == "__main__":
